@@ -1,8 +1,12 @@
 <p>feature works!</p>
+<label for="range">Select a range in miles</label>
+<input (change)="adjustRange($event)" type="number" name="range" id="range">
+<button (click)="applyRange()">Apply range</button>
+<div id="map" #olMap></div>
 
-<ul *ngFor="let unit of idsAndColors">
+<!-- <ul *ngFor="let unit of idsAndColors">
     <li>Id: {{unit.id}}, Color: {{unit.color}}</li>
-</ul>
+</ul> -->
 
 <!-- Using the xmlData.xml file in Interview/config, display all the units on a map
 Use any mapping framework you would like (e.g. leaflet).
