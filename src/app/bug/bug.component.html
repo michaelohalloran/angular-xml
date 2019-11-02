@@ -1,0 +1,53 @@
+<div class="accordion" id="accordionExample">
+    <div class="card">
+      <div class="card-header" id="headingOne">
+        <h2 class="mb-0">
+          <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+            Clicked button {{count}} times
+          </button>
+        </h2>
+      </div>
+  
+      <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#accordionExample">
+        <div class="card-body">
+            <button class="btn btn-primary" (click)="incCount()">Increase Count</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header" id="headingTwo">
+        <h2 class="mb-0">
+          <button class="btn btn-link collapsed" type="button" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+            Count the Changes to the Observable Object
+          </button>
+        </h2>
+      </div>
+      <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionExample">
+        <div class="card-body">
+            <h3>The observed object changed {{changedCounter}} times</h3>
+
+            <div class="form-group">
+                <label class="control-label">Text</label>
+                <input 
+                    [ngModel]="defaultText1" 
+                    name="observedObject1" 
+                    type="text" 
+                    (input)="incTextCount($event)" 
+                    class="form-control" 
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="control-label">Text B</label>
+                <input 
+                    [ngModel]="defaultText2" 
+                    name="observedObject2" 
+                    type="text" 
+                    (input)="incTextCount($event)" 
+                    class="form-control" 
+                />
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
