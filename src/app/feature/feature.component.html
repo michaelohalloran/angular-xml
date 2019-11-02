@@ -1,16 +1,14 @@
-<label for="range">Select a range in miles</label>
-<input (change)="adjustRange($event)" type="number" name="range" id="range">
-<button (click)="applyRange()">Apply range</button>
+<div class="input-group" style="align-items: center;">
+    <input 
+        placeholder="Select a range in kilometers"
+        (change)="adjustRange($event)" 
+        class="ml-3 form-control" 
+        type="number" 
+        name="range" 
+        id="range"/>
+        <div class="input-group-append">
+            <button class="btn btn-outline-secondary m-3" (click)="applyRange()">Apply range</button>
+        </div>
+</div>
 <div id="map" #olMap></div>
 
-<!-- <ul *ngFor="let unit of idsAndColors">
-    <li>Id: {{unit.id}}, Color: {{unit.color}}</li>
-</ul> -->
-
-<!-- Using the xmlData.xml file in Interview/config, display all the units on a map
-Use any mapping framework you would like (e.g. leaflet).
-Each Unit should display its ID and Color.
-Allow the user to select a Range value.
-Highlight untis that are within that range of any other unit.
-Other Pages may wish to use your display code for the Unit.
-Ensure that the feature page is responsive. -->
