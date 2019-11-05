@@ -1,4 +1,4 @@
-import { Component, OnInit, Renderer2 } from "@angular/core";
+import { Component, OnInit, Renderer2, OnDestroy } from "@angular/core";
 import { parseString } from "xml2js";
 import { HttpClient } from "@angular/common/http";
 import Map from "ol/Map";
@@ -7,7 +7,7 @@ import { fromLonLat, toLonLat, transform } from "ol/proj";
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 import OSM from "ol/source/OSM";
 import { Vector as VectorSource } from "ol/source";
-import { Icon, Style, Text } from "ol/style";
+import { Style, Text, Fill, Stroke, Circle } from "ol/style";
 import Feature from "ol/Feature";
 import { Point } from "ol/geom";
 import { defaults as defaultControls } from "ol/control";
@@ -17,14 +17,17 @@ import { defaults as defaultControls } from "ol/control";
 	templateUrl: "./feature.component.html",
 	styleUrls: [ "./feature.component.css" ]
 })
-export class FeatureComponent implements OnInit {
+export class FeatureComponent implements OnInit, OnDestroy {
 	data: any;
 	parsedData: any;
 	units: any;
 	idsAndColors = [];
 	map: Map;
+	features: Feature[] = [];
 	range = 0;
 	initialSource: VectorSource;
+	defaultStyle = [ 124, 228, 255 ];
+	hightlightStyle = [ 255, 255, 0 ];
 	private url = "assets/data/xmlData.xml";
 	EARTH_RADIUS = 6371e3;
 	METERS_TO_MILES = 1609.344;
@@ -42,6 +45,17 @@ export class FeatureComponent implements OnInit {
 			},
 			(err) => console.log("error in getting xml: ", err)
 		);
+	}
+
+	ngOnDestroy() {
+		this.data = null;
+		this.parsedData = null;
+		this.units = null;
+		this.idsAndColors = [];
+		this.map = null;
+		this.features = [];
+		this.range = 0;
+		this.initialSource = null;
 	}
 
 	initializeMap() {
@@ -70,10 +84,9 @@ export class FeatureComponent implements OnInit {
 	// change this.range
 	adjustRange(evt: Event) {
 		this.range = parseFloat((evt.target as HTMLInputElement).value);
-		console.log("range: ", this.range);
 	}
 
-	// apply highlight to all units within this.range miles of map center
+	// apply highlight to all units within this.range kilometers of map center
 	applyRange() {
 		// find map center, make radius extending this.range miles, apply highlights to all in that range
 		const mapCenter = toLonLat(this.map.getView().getCenter());
@@ -81,35 +94,45 @@ export class FeatureComponent implements OnInit {
 		const layer = this.map.getLayers().getArray().find((layer) => layer.get("id") === "vectorLayer");
 		// get marker features
 		const markers = layer.getSource().getFeatures();
-		markers.forEach((marker) => {
+		this.features.forEach((marker) => {
 			// get location of each marker
 			const location = marker.getGeometry().getCoordinates();
 			const lonLat = toLonLat(location);
-			// if latLon is within 10 miles of map.getViewport() latLon, apply yellow icon
-			const withinRange = this.calcDistanceFromMapCenter(mapCenter, lonLat) < this.range;
 			const markerId = marker.getStyle().getText().getText();
+			// if latLon is within this.range km of another point, apply yellow highlight
+			const withinRange = this.findMarkerWithinRange(lonLat, markerId);
 			if (withinRange) {
-				marker.setStyle(this.getIconStyle([ 0, 255, 0, 1 ], markerId));
+				marker.setStyle(this.getIconStyle(this.hightlightStyle, markerId));
 			} else {
-				marker.setStyle(this.getIconStyle([ 128, 224, 255, 1 ], markerId));
+				marker.setStyle(this.getIconStyle(this.defaultStyle, markerId));
 			}
 		});
 	}
 
 	// https://www.movable-type.co.uk/scripts/latlong.html
-	calcDistanceFromMapCenter(mapCenter: number[], latLon: number[]): number {
-		let [ mapLon, mapLat ] = mapCenter;
+	calcDistanceBtwnPoints(feature: Feature, latLon: number[]): number {
 		let [ markerLon, markerLat ] = latLon;
-		const radianCoords = [ mapLat, mapLon, markerLat, markerLon ].map((coord) => this.toRadians(coord));
-		const [ latMap, lonMap, latMarker, lonMarker ] = radianCoords;
-		const deltaLat = latMarker - latMap;
-		const deltaLon = lonMarker - lonMap;
+		const lonLat2 = toLonLat(feature.getGeometry().getCoordinates());
+		let [ compareLon, compareLat ] = lonLat2;
+		const radianCoords = [ compareLat, compareLon, markerLat, markerLon ].map((coord) => this.toRadians(coord));
+		const [ latPoint2, lonPoint2, latMarker, lonMarker ] = radianCoords;
+		const deltaLat = latPoint2 - latMarker;
+		const deltaLon = lonPoint2 - lonMarker;
 		const halfChordLength =
-			Math.sin(deltaLat / 2) ** 2 + Math.cos(latMap) * Math.cos(latMarker) * Math.sin(deltaLon / 2) ** 2;
+			Math.sin(deltaLat / 2) ** 2 + Math.cos(latPoint2) * Math.cos(latMarker) * Math.sin(deltaLon / 2) ** 2;
 		const numerator = Math.sqrt(halfChordLength);
 		const denominator = Math.sqrt(1 - halfChordLength);
 		const angularDistance = 2 * Math.atan2(numerator, denominator);
 		return this.EARTH_RADIUS * angularDistance / 1000; // returns kilometers
+	}
+
+	// use a point's lat/lng to see if any other markers are within range
+	findMarkerWithinRange(latLon: number[], id: string): boolean {
+		return this.features.some(
+			(feature) =>
+				feature.getStyle().getText().getText() !== id &&
+				this.calcDistanceBtwnPoints(feature, latLon) < this.range
+		);
 	}
 
 	toDegrees(radians: number): number {
@@ -122,12 +145,15 @@ export class FeatureComponent implements OnInit {
 
 	getIconStyle(color: number[], id: string): Style {
 		return new Style({
-			image: new Icon({
-				anchor: [ 0.5, 1.2 ],
-				color,
-				scale: 0.05,
-				crossOrigin: "anonymous",
-				src: "https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-512.png"
+			image: new Circle({
+				radius: 6,
+				fill: new Fill({
+					color
+				}),
+				stroke: new Stroke({
+					color,
+					width: 4
+				})
 			}),
 			text: new Text({
 				text: id
@@ -160,6 +186,7 @@ export class FeatureComponent implements OnInit {
 				});
 
 				marker.setStyle(this.getIconStyle(color, id));
+				this.features.push(marker);
 				this.initialSource.addFeature(marker);
 			});
 		}
